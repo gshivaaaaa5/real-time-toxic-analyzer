@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+transformers
+torch
+pydantic
+scikit-learn
+numpy
+pandas
+emoji
+aiohttp
+httpx
+beautifulsoup4
+tqdm
+fastapi[all]

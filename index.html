@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8" />
+  <title>🧠 Toxicity & Sentiment Analyzer - Clean UI</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+    /* Reset & basics */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background-color: #121212; /* dark but neutral */
+      font-family: 'Montserrat', sans-serif;
+      color: #ddd; /* light gray, easy on eyes */
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 48px 20px;
+      user-select: none;
+    }
+
+    /* Container */
+    .container {
+      background-color: #1e1e1e; /* dark gray */
+      border-radius: 12px;
+      width: 100%;
+      max-width: 720px;
+      padding: 32px 40px;
+      user-select: text;
+    }
+
+    h1 {
+      font-weight: 600;
+      font-size: 2.4rem;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #f5f5f5;
+      letter-spacing: 0.03em;
+    }
+
+    /* Input */
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      border-radius: 8px;
+      border: 1px solid #444;
+      padding: 16px 20px;
+      font-size: 1.1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: #eee;
+      background-color: #2a2a2a;
+      resize: vertical;
+      outline-offset: 2px;
+      outline-color: #888;
+      font-family: 'Montserrat', sans-serif;
+      transition: border-color 0.2s ease;
+    }
+    textarea::placeholder {
+      color: #777;
+      font-style: italic;
+    }
+    textarea:focus {
+      border-color: #aaa;
+      background-color: #333;
+      color: #fff;
+    }
+
+    /* Button */
+    button {
+      display: block;
+      margin: 24px auto 36px auto;
+      padding: 14px 40px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      background-color: #f0b90b; /* subtle gold */
+      border: none;
+      border-radius: 9999px;
+      color: #121212;
+      cursor: pointer;
+      user-select: none;
+      font-family: 'Montserrat', sans-serif;
+      transition: background-color 0.2s ease;
+    }
+    button:hover {
+      background-color: #d4a70c;
+    }
+    button:active {
+      background-color: #b38808;
+      transform: scale(0.97);
+    }
+
+    /* Output */
+    #output, #recentComments {
+      background-color: #2b2b2b;
+      border-radius: 10px;
+      padding: 22px 28px;
+      font-size: 1rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      max-height: 420px;
+      overflow-y: auto;
+      user-select: text;
+      color: #ddd;
+      font-family: 'Montserrat', sans-serif;
+    }
+    #output.toxic {
+      background-color: #4d1f1f; /* dark red background */
+      color: #f9d6d6; /* soft pinkish red */
+      font-weight: 600;
+    }
+
+    /* Section Titles */
+    h2 {
+      font-weight: 600;
+      color: #f0b90b;
+      margin-bottom: 16px;
+      margin-top: 40px;
+      user-select: text;
+    }
+
+    /* Scrollbar */
+    #output::-webkit-scrollbar,
+    #recentComments::-webkit-scrollbar {
+      width: 8px;
+    }
+    #output::-webkit-scrollbar-thumb,
+    #recentComments::-webkit-scrollbar-thumb {
+      background-color: #888;
+      border-radius: 6px;
+    }
+    #output::-webkit-scrollbar-track,
+    #recentComments::-webkit-scrollbar-track {
+      background-color: #1e1e1e;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container" role="main" aria-label="Toxicity and Sentiment Analyzer">
+    <h1>🧠 Toxicity, Sentiment & Emotion Analyzer</h1>
+
+    <textarea id="commentBox" placeholder="Type or paste your comment here..."></textarea>
+    <button onclick="analyze()" aria-label="Analyze Comment Button">Analyze Comment</button>
+
+    <h2>🔍 Analysis Result</h2>
+    <pre id="output" aria-live="polite" aria-atomic="true">Waiting for input...</pre>
+
+    <h2>📢 Live Reddit Comments (Last 20)</h2>
+    <pre id="recentComments" aria-live="polite" aria-atomic="true">Loading recent comments...</pre>
+  </div>
+
+  <script>
+    const TOXICITY_THRESHOLD = 0.7;
+
+    async function analyze() {
+      const comment = document.getElementById("commentBox").value.trim();
+      if (!comment) return;
+
+      const output = document.getElementById("output");
+      output.textContent = "Analyzing...";
+      output.classList.remove("toxic");
+
+      try {
+        const response = await fetch("http://localhost:8000/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: comment }),
+        });
+
+        if (!response.ok) throw new Error("API error");
+
+        const result = await response.json();
+        const highToxic = result.top_3_toxicity_labels.some(t => t.score >= TOXICITY_THRESHOLD);
+
+        let display = `🗣️ Comment: ${result.text}\n\n`;
+        display += `💬 Sentiment: ${result.sentiment} (Confidence: ${result.confidence})\n\n`;
+
+        display += "☣️ Top 3 Toxicity Labels:\n";
+        result.top_3_toxicity_labels.forEach(t => {
+          if (t.score >= TOXICITY_THRESHOLD) {
+            display += ` ⚠️ ${t.label}: ${t.score}\n`;
+          } else {
+            display += ` - ${t.label}: ${t.score}\n`;
+          }
+        });
+
+        display += `\n🎭 Top Emotions:\n`;
+        for (const [label, score] of Object.entries(result.top_3_emotions)) {
+          display += ` - ${label.replace("emotion_", "")}: ${score}\n`;
+        }
+
+        if (highToxic) {
+          output.classList.add("toxic");
+          display = "⚠️⚠️⚠️ HIGH TOXICITY ALERT! ⚠️⚠️⚠️\n\n" + display;
+        }
+
+        output.textContent = display;
+
+      } catch (e) {
+        output.textContent = "Error analyzing comment.";
+        console.error(e);
+      }
+    }
+
+    async function fetchRecentComments() {
+      const container = document.getElementById("recentComments");
+      try {
+        const response = await fetch("http://localhost:8000/recent");
+        if (!response.ok) throw new Error("Failed to fetch recent comments");
+
+        const comments = await response.json();
+
+        if (!Array.isArray(comments) || comments.length === 0) {
+          container.textContent = "No recent comments available.";
+          return;
+        }
+
+        let display = "";
+        comments.forEach((comment, idx) => {
+          const highToxic = comment.top_3_toxicity_labels.some(t => t.score >= TOXICITY_THRESHOLD);
+
+          if (highToxic) {
+            display += `⚠️⚠️⚠️ #${idx + 1} 🗣️ Comment: ${comment.text}\n`;
+            display += `   💬 Sentiment: ${comment.sentiment} (Confidence: ${comment.confidence})\n`;
+            display += formatToxicityLabels(comment.top_3_toxicity_labels);
+            display += `   🎭 Top Emotions:\n`;
+            for (const [label, score] of Object.entries(comment.top_3_emotions)) {
+              display += `     - ${label.replace("emotion_", "")}: ${score}\n`;
+            }
+            display += "\n";
+          } else {
+            display += `#${idx + 1} 🗣️ Comment: ${comment.text}\n`;
+            display += `   💬 Sentiment: ${comment.sentiment} (Confidence: ${comment.confidence})\n`;
+            display += formatToxicityLabels(comment.top_3_toxicity_labels);
+            display += `   🎭 Top Emotions:\n`;
+            for (const [label, score] of Object.entries(comment.top_3_emotions)) {
+              display += `     - ${label.replace("emotion_", "")}: ${score}\n`;
+            }
+            display += "\n";
+          }
+        });
+
+        container.textContent = display;
+      } catch (e) {
+        container.textContent = "Error loading recent comments.";
+        console.error(e);
+      }
+    }
+
+    function formatToxicityLabels(toxLabels) {
+      if (toxLabels.length === 0) return "✅ No high toxicity detected.\n";
+      let result = "☣️ Top 3 Toxicity Labels:\n";
+      toxLabels.forEach(t => {
+        if (t.score >= TOXICITY_THRESHOLD) {
+          result += ` ⚠️ ${t.label}: ${t.score}\n`;
+        } else {
+          result += ` - ${t.label}: ${t.score}\n`;
+        }
+      });
+      return result;
+    }
+
+    fetchRecentComments();
+    setInterval(fetchRecentComments, 6000);
+  </script>
+</body>
+</html>

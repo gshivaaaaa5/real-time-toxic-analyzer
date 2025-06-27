@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+env/
+venv/
+
+# Colab/Notebook
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+*.csv
+!comment_analysis_results.csv  # allow only this CSV
+
+# Secrets
+.env
+*.token
+
+toxic-unbiased-local/
